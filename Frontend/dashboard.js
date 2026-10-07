@@ -77,7 +77,7 @@ const Dashboard = {
                         </svg>
                         Resumen
                     </a>
-                    <a class="sidebar-link" href="#services" @click="isSidebarOpen = false">
+                    <a class="sidebar-link" href="./services.html" @click="isSidebarOpen = false">
                         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                             <path d="M4 8h16l-1.2 11H5.2L4 8Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
                             <path d="M8 8a4 4 0 0 1 8 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
@@ -90,6 +90,12 @@ const Dashboard = {
                             <path d="M7.5 3.5v3M16.5 3.5v3M3.5 9.5h17M8 13h3M8 16h3M14 13h2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
                         </svg>
                         Reservas
+                    </a>
+                    <a v-if="user?.role === 'admin'" class="sidebar-link" href="./users.html" @click="isSidebarOpen = false">
+                        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M16 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 18.5V20M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM16 4.2a4 4 0 0 1 0 7.6M17 15h1.5a3.5 3.5 0 0 1 3.5 3.5V20" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
+                        </svg>
+                        Usuarios
                     </a>
                 </nav>
 
