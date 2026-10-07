@@ -4,7 +4,6 @@ const userSchema = new mongoose.Schema(
   {
     name: { type: String, trim: true, default: '' },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-    phone: { type: String, trim: true, default: '' },
     passwordHash: { type: String, required: true, select: false },
     legacyUserId: { type: mongoose.Schema.Types.ObjectId, default: null },
     role: { type: String, default: 'user', trim: true },

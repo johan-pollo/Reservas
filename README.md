@@ -59,9 +59,7 @@ Genera un secreto aleatorio para JWT y copia el resultado en `JWT_SECRET` dentro
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-Configura también `MONGODB_URI`, `MONGODB_DB_NAME`, `CLIENT_ORIGIN` y `RECAPTCHA_SECRET_KEY` en `.env`. Obtén la clave secreta para el servidor y la clave de sitio para el frontend en la consola de administración de reCAPTCHA; el backend verifica los tokens con Google. Sin `RECAPTCHA_SECRET_KEY`, el endpoint de registro responde `503` en lugar de crear una cuenta sin validar el CAPTCHA.
-
-Para ejecutar la API en desarrollo:
+Configura también `MONGODB_URI`, `MONGODB_DB_NAME` y `CLIENT_ORIGIN` en `.env`. Para ejecutar la API en desarrollo:
 
 ```powershell
 npm run dev
@@ -191,7 +189,7 @@ Respuesta `200`:
 
 La respuesta del usuario no incluye la contraseña ni su hash. Los datos inválidos devuelven `400`; las credenciales incorrectas, cuentas inactivas o bloqueadas devuelven un error genérico `401`. Se limitan las solicitudes por IP y la cuenta se bloquea temporalmente después de varios intentos fallidos. `LOGIN_MAX_ATTEMPTS` y `LOGIN_LOCK_MINUTES` permiten ajustar los valores predeterminados de cinco intentos y quince minutos.
 
-Para iniciar sesión, el usuario debe estar registrado en `users` con su correo normalizado y `passwordHash` calculado con bcrypt. Las contraseñas en texto plano no son aceptadas.
+Para iniciar sesión, ya debe existir en `users` un documento con el correo normalizado y `passwordHash` calculado con bcrypt. HUS-01 no incluye el registro de usuarios. Las contraseñas en texto plano no son aceptadas.
 
 El modelo `Service` guarda nombre, descripción, precio, duración, imagen, categoría y estado. El modelo `Reservation` guarda referencias a usuario y servicio, fecha, hora, observaciones y estado.
 

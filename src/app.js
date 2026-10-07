@@ -10,13 +10,7 @@ const { createDashboardRouter } = require('./routes/dashboard.routes');
 const { createUsersRouter } = require('./routes/users.routes');
 const { createServicesRouter } = require('./routes/services.routes');
 
-function createApp({
-  userModel = User,
-  serviceModel = Service,
-  reservationModel = Reservation,
-  jwtSecret = process.env.JWT_SECRET,
-  verifyCaptcha = createGoogleCaptchaVerifier(process.env.RECAPTCHA_SECRET_KEY)
-} = {}) {
+function createApp({ userModel = User, jwtSecret = process.env.JWT_SECRET } = {}) {
   const app = express();
   const allowedOrigins = (process.env.CLIENT_ORIGIN || 'http://localhost:5500')
     .split(',')
@@ -36,16 +30,7 @@ function createApp({
       legacyHeaders: false,
       message: { message: 'Demasiados intentos. Intenta de nuevo más tarde.' }
     }),
-    createAuthRouter({ User: userModel, jwtSecret, verifyCaptcha })
-  );
-  app.use(
-    '/api/dashboard',
-    createDashboardRouter({
-      User: userModel,
-      Service: serviceModel,
-      Reservation: reservationModel,
-      jwtSecret
-    })
+    createAuthRouter({ User: userModel, jwtSecret })
   );
   app.use('/api/users', createUsersRouter({ User: userModel, jwtSecret }));
   app.use('/api/services', createServicesRouter({
