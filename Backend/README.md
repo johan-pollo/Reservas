@@ -59,7 +59,9 @@ Genera un secreto aleatorio para JWT y copia el resultado en `JWT_SECRET` dentro
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-Configura también `MONGODB_URI`, `MONGODB_DB_NAME` y `CLIENT_ORIGIN` en `.env`. Para ejecutar la API en desarrollo:
+Configura también `MONGODB_URI`, `MONGODB_DB_NAME`, `CLIENT_ORIGIN` y `RECAPTCHA_SECRET_KEY` en `.env`. Obtén la clave secreta para el servidor y la clave de sitio para el frontend en la consola de administración de reCAPTCHA; el backend verifica los tokens con Google. Sin `RECAPTCHA_SECRET_KEY`, el endpoint de registro responde `503` en lugar de crear una cuenta sin validar el CAPTCHA.
+
+Para ejecutar la API en desarrollo:
 
 ```powershell
 npm run dev
@@ -146,19 +148,6 @@ Todas las rutas `/api/users` requieren un JWT válido de una cuenta **activa** c
 
 Las respuestas nunca incluyen el hash de la contraseña. Los correos duplicados devuelven `409`, los datos o identificadores inválidos `400`, un usuario inexistente `404`, y los intentos de gestión sin permisos `401` o `403`. Un administrador no puede quitarse su propio rol ni desactivar su cuenta. El estado de cuenta y el rol se consultan en MongoDB para cada petición protegida.
 
-Los cambios administrativos de creación, rol y estado de cuentas se serializan dentro del proceso de Node.js. Así, solicitudes concurrentes atendidas por una misma instancia no pueden desactivar o degradar simultáneamente a todos los administradores activos. Si se despliega la API con varios procesos o instancias, esta exclusión debe sustituirse por un bloqueo distribuido o por una transacción MongoDB coordinada.
-
-## Endpoints HUS-05: gestión de servicios
-
-Todas las rutas `/api/services` requieren un JWT válido de una cuenta activa. La lectura está disponible para usuarios autenticados; crear, actualizar y eliminar requiere rol `admin`.
-
-- `GET /api/services?page=1&limit=20&search=corte&status=active&category=Cabello` lista servicios con paginación y filtros opcionales por texto, estado y categoría. La búsqueda revisa nombre, descripción y categoría.
-- `POST /api/services` crea un servicio con `name`, `price` y `durationMinutes`; acepta opcionalmente `description`, `imageUrl`, `category` y `status`. El estado predeterminado es `active`.
-- `PUT /api/services/:id` actualiza parcialmente cualquiera de los campos permitidos.
-- `DELETE /api/services/:id` realiza una baja lógica al cambiar `status` a `inactive`; el documento se conserva para mantener válidas las referencias desde reservas históricas.
-
-El precio debe ser un número mayor o igual a cero; la duración, un entero positivo; el estado, `active` o `inactive`. Las respuestas usan `service` para una operación individual y `services` más `pagination` para listados. Datos o identificadores inválidos devuelven `400`, recursos inexistentes `404` y solicitudes sin permisos `401` o `403`. El endpoint `DELETE` no borra físicamente el servicio.
-
 ## Endpoint HUS-01
 
 `POST /api/auth/login`
@@ -189,9 +178,9 @@ Respuesta `200`:
 
 La respuesta del usuario no incluye la contraseña ni su hash. Los datos inválidos devuelven `400`; las credenciales incorrectas, cuentas inactivas o bloqueadas devuelven un error genérico `401`. Se limitan las solicitudes por IP y la cuenta se bloquea temporalmente después de varios intentos fallidos. `LOGIN_MAX_ATTEMPTS` y `LOGIN_LOCK_MINUTES` permiten ajustar los valores predeterminados de cinco intentos y quince minutos.
 
-Para iniciar sesión, ya debe existir en `users` un documento con el correo normalizado y `passwordHash` calculado con bcrypt. HUS-01 no incluye el registro de usuarios. Las contraseñas en texto plano no son aceptadas.
+Para iniciar sesión, el usuario debe estar registrado en `users` con su correo normalizado y `passwordHash` calculado con bcrypt. Las contraseñas en texto plano no son aceptadas.
 
-El modelo `Service` guarda nombre, descripción, precio, duración, imagen, categoría y estado. El modelo `Reservation` guarda referencias a usuario y servicio, fecha, hora, observaciones y estado.
+Los modelos `services` y `reservations` están preparados para historias posteriores, pero todavía no tienen endpoints CRUD. Incluyen, respectivamente, nombre, descripción, precio, duración, imagen, categoría y estado; y referencias a usuario y servicio, fecha, hora, observaciones y estado.
 
 ## Pruebas
 
