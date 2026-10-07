@@ -3,9 +3,20 @@ const cors = require('cors');
 const helmet = require('helmet');
 const { rateLimit } = require('express-rate-limit');
 const User = require('./models/user');
-const { createAuthRouter } = require('./routes/auth.routes');
+const Service = require('./models/service');
+const Reservation = require('./models/reservation');
+const { createAuthRouter, createGoogleCaptchaVerifier } = require('./routes/auth.routes');
+const { createDashboardRouter } = require('./routes/dashboard.routes');
+const { createUsersRouter } = require('./routes/users.routes');
+const { createServicesRouter } = require('./routes/services.routes');
 
-function createApp({ userModel = User, jwtSecret = process.env.JWT_SECRET } = {}) {
+function createApp({
+  userModel = User,
+  serviceModel = Service,
+  reservationModel = Reservation,
+  jwtSecret = process.env.JWT_SECRET,
+  verifyCaptcha = createGoogleCaptchaVerifier(process.env.RECAPTCHA_SECRET_KEY)
+} = {}) {
   const app = express();
   const allowedOrigins = (process.env.CLIENT_ORIGIN || 'http://localhost:5500')
     .split(',')
@@ -25,8 +36,23 @@ function createApp({ userModel = User, jwtSecret = process.env.JWT_SECRET } = {}
       legacyHeaders: false,
       message: { message: 'Demasiados intentos. Intenta de nuevo más tarde.' }
     }),
-    createAuthRouter({ User: userModel, jwtSecret })
+    createAuthRouter({ User: userModel, jwtSecret, verifyCaptcha })
   );
+  app.use(
+    '/api/dashboard',
+    createDashboardRouter({
+      User: userModel,
+      Service: serviceModel,
+      Reservation: reservationModel,
+      jwtSecret
+    })
+  );
+  app.use('/api/users', createUsersRouter({ User: userModel, jwtSecret }));
+  app.use('/api/services', createServicesRouter({
+    Service: serviceModel,
+    User: userModel,
+    jwtSecret
+  }));
 
   app.use((req, res) => res.status(404).json({ message: 'Recurso no encontrado.' }));
   app.use((error, req, res, next) => {
