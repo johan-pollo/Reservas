@@ -1,6 +1,6 @@
 # Sistema de Reservas
 
-Proyecto con un frontend estático de inicio de sesión (HTML, CSS y JavaScript) y una API REST en Node.js/Express para el backend. En este sprint, el backend implementa HUS-01: autenticación de usuarios existentes mediante correo y contraseña. El registro, la recuperación de contraseña y el dashboard todavía no están implementados.
+Proyecto con un frontend estático de inicio de sesión (HTML, CSS y JavaScript) y una API REST en Node.js/Express. El backend implementa HUS-01 (inicio de sesión), HUS-02 (registro de usuarios) y HUS-03 (estadísticas del dashboard). La recuperación de contraseña y la verificación por correo todavía no están implementadas.
 
 ## Requisitos
 
@@ -59,7 +59,9 @@ Genera un secreto aleatorio para JWT y copia el resultado en `JWT_SECRET` dentro
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-Configura también `MONGODB_URI`, `MONGODB_DB_NAME` y `CLIENT_ORIGIN` en `.env`. Para ejecutar la API en desarrollo:
+Configura también `MONGODB_URI`, `MONGODB_DB_NAME`, `CLIENT_ORIGIN` y `RECAPTCHA_SECRET_KEY` en `.env`. Obtén la clave secreta para el servidor y la clave de sitio para el frontend en la consola de administración de reCAPTCHA; el backend verifica los tokens con Google. Sin `RECAPTCHA_SECRET_KEY`, el endpoint de registro responde `503` en lugar de crear una cuenta sin validar el CAPTCHA.
+
+Para ejecutar la API en desarrollo:
 
 ```powershell
 npm run dev
@@ -68,6 +70,72 @@ npm run dev
 El servidor conecta a MongoDB, prepara las colecciones `users`, `services` y `reservations`, y crea sus índices. No inserta usuarios ni datos de ejemplo. `GET /api/health` comprueba que la API esté respondiendo.
 
 Abre el frontend con un servidor estático. El origen predeterminado permitido por CORS es `http://localhost:5500`; si utilizas otro, actualiza `CLIENT_ORIGIN` en `.env`.
+
+## Endpoint HUS-02: registro
+
+`POST /api/auth/register`
+
+Solicitud JSON:
+
+```json
+{
+  "name": "Ana Pérez",
+  "email": "ana@correo.com",
+  "phone": "3001234567",
+  "password": "ClaveSegura123!",
+  "confirmPassword": "ClaveSegura123!",
+  "termsAccepted": true,
+  "captchaToken": "<token emitido por reCAPTCHA>"
+}
+```
+
+El backend normaliza el correo, valida el nombre, el teléfono, la confirmación de contraseña y la aceptación de términos. La contraseña debe tener al menos ocho caracteres, mayúscula, minúscula, número y símbolo; se almacena únicamente como hash bcrypt y se rechazan contraseñas de más de 72 bytes. El rol se asigna en el servidor y no se toma del formulario.
+
+Una respuesta `201` confirma el registro y devuelve el perfil público (`id`, `name`, `email`, `phone` y `role`); no inicia sesión ni devuelve un JWT. El usuario puede iniciar sesión con HUS-01 después de registrarse. El correo existente devuelve `409`, los datos o tokens CAPTCHA inválidos devuelven `400`, y un CAPTCHA no configurado devuelve `503`. Las solicitudes al endpoint de autenticación están limitadas por IP.
+
+El frontend incluido en este repositorio solo contiene el formulario de inicio de sesión: todavía no incluye formulario de registro ni integración cliente con reCAPTCHA. La clave de sitio y el token CAPTCHA deberán conectarse cuando se implemente esa pantalla. La verificación por correo también queda pendiente.
+
+## Endpoint HUS-03: estadísticas del dashboard
+
+`GET /api/dashboard/stats`
+
+Requiere el JWT emitido por el inicio de sesión en el encabezado `Authorization: Bearer <token>`. El backend verifica la firma, la vigencia y que la cuenta todavía exista y esté activa; no confía en el rol incluido en el token y consulta el rol actual del usuario.
+
+Ejemplo de respuesta `200` para una persona administradora:
+
+```json
+{
+  "user": {
+    "id": "<id>",
+    "name": "Ana Pérez",
+    "role": "admin"
+  },
+  "stats": {
+    "users": 12,
+    "services": { "total": 8, "active": 6 },
+    "reservations": {
+      "total": 24,
+      "pending": 4,
+      "confirmed": 10,
+      "cancelled": 3,
+      "completed": 7
+    }
+  },
+  "recentReservations": [
+    {
+      "id": "<id>",
+      "date": "2026-11-01T00:00:00.000Z",
+      "time": "10:00",
+      "status": "pending",
+      "notes": "",
+      "userId": "<id>",
+      "serviceId": "<id>"
+    }
+  ]
+}
+```
+
+La respuesta incluye hasta cinco reservas recientes. La persona administradora consulta conteos globales; cualquier otro usuario autenticado recibe únicamente sus propios conteos y reservas, y `stats.users` será `null`. El total de servicios y los servicios activos son globales porque representan el catálogo disponible. Sin token, con token inválido o expirado, o con cuenta inactiva, la API responde `401`.
 
 ## Endpoint HUS-01
 
@@ -99,7 +167,7 @@ Respuesta `200`:
 
 La respuesta del usuario no incluye la contraseña ni su hash. Los datos inválidos devuelven `400`; las credenciales incorrectas, cuentas inactivas o bloqueadas devuelven un error genérico `401`. Se limitan las solicitudes por IP y la cuenta se bloquea temporalmente después de varios intentos fallidos. `LOGIN_MAX_ATTEMPTS` y `LOGIN_LOCK_MINUTES` permiten ajustar los valores predeterminados de cinco intentos y quince minutos.
 
-Para iniciar sesión, ya debe existir en `users` un documento con el correo normalizado y `passwordHash` calculado con bcrypt. HUS-01 no incluye el registro de usuarios. Las contraseñas en texto plano no son aceptadas.
+Para iniciar sesión, el usuario debe estar registrado en `users` con su correo normalizado y `passwordHash` calculado con bcrypt. Las contraseñas en texto plano no son aceptadas.
 
 Los modelos `services` y `reservations` están preparados para historias posteriores, pero todavía no tienen endpoints CRUD. Incluyen, respectivamente, nombre, descripción, precio, duración, imagen, categoría y estado; y referencias a usuario y servicio, fecha, hora, observaciones y estado.
 
