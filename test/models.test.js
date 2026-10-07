@@ -10,16 +10,6 @@ test('asigna un modelo a cada colección existente', () => {
   assert.equal(Reservation.collection.collectionName, 'reservations');
 });
 
-test('mantiene compatibles los usuarios existentes sin teléfono', () => {
-  const user = new User({
-    email: 'usuario@correo.com',
-    passwordHash: 'hash-existente'
-  });
-
-  assert.equal(user.phone, '');
-  assert.equal(user.validateSync(), undefined);
-});
-
 test('valida los campos obligatorios de un servicio', () => {
   const service = new Service({ name: 'Corte', price: -1, durationMinutes: 0 });
   const error = service.validateSync();

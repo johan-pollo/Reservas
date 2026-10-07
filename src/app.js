@@ -3,13 +3,9 @@ const cors = require('cors');
 const helmet = require('helmet');
 const { rateLimit } = require('express-rate-limit');
 const User = require('./models/user');
-const { createAuthRouter, createGoogleCaptchaVerifier } = require('./routes/auth.routes');
+const { createAuthRouter } = require('./routes/auth.routes');
 
-function createApp({
-  userModel = User,
-  jwtSecret = process.env.JWT_SECRET,
-  verifyCaptcha = createGoogleCaptchaVerifier(process.env.RECAPTCHA_SECRET_KEY)
-} = {}) {
+function createApp({ userModel = User, jwtSecret = process.env.JWT_SECRET } = {}) {
   const app = express();
   const allowedOrigins = (process.env.CLIENT_ORIGIN || 'http://localhost:5500')
     .split(',')
@@ -29,7 +25,7 @@ function createApp({
       legacyHeaders: false,
       message: { message: 'Demasiados intentos. Intenta de nuevo más tarde.' }
     }),
-    createAuthRouter({ User: userModel, jwtSecret, verifyCaptcha })
+    createAuthRouter({ User: userModel, jwtSecret })
   );
 
   app.use((req, res) => res.status(404).json({ message: 'Recurso no encontrado.' }));
