@@ -1,5 +1,4 @@
 const { createApp } = Vue;
-const API_BASE_URL = "http://localhost:3000";
 
 const Login = {
     data() {
@@ -13,9 +12,7 @@ const Login = {
                 password: ""
             },
             loginError: "",
-            loginSuccess: new URLSearchParams(window.location.search).get("registered") === "1"
-                ? "Tu cuenta se creó correctamente. Ya puedes iniciar sesión."
-                : ""
+            loginSuccess: ""
         };
     },
     template: `
@@ -99,10 +96,6 @@ const Login = {
                     </button>
                 </form>
 
-                <p class="register-prompt">
-                    ¿No tienes cuenta? <a href="./register.html">Crear cuenta</a>
-                </p>
-
                 <footer class="login-footer">
                     <span class="footer-dot" aria-hidden="true"></span>
                     Acceso seguro a tu sistema de reservas
@@ -160,7 +153,7 @@ const Login = {
 
             let response;
             try {
-                response = await fetch(`${API_BASE_URL}/api/auth/login`, {
+                response = await fetch("/api/auth/login", {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
