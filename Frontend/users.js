@@ -81,7 +81,7 @@ const Users = {
                         </svg>
                         Resumen
                     </a>
-                    <a class="users-nav-link" href="./dashboard.html#services" @click="isSidebarOpen = false">
+                    <a class="users-nav-link" href="./services.html" @click="isSidebarOpen = false">
                         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                             <path d="M4 8h16l-1.2 11H5.2L4 8Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/>
                             <path d="M8 8a4 4 0 0 1 8 0" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/>
