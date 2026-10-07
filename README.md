@@ -1,6 +1,6 @@
 # Sistema de Reservas
 
-Proyecto con un frontend estático de inicio de sesión (HTML, CSS y JavaScript) y una API REST en Node.js/Express. El backend implementa HUS-01 (inicio de sesión), HUS-02 (registro de usuarios) y HUS-03 (estadísticas del dashboard). La recuperación de contraseña y la verificación por correo todavía no están implementadas.
+Proyecto con un frontend estático de inicio de sesión (HTML, CSS y JavaScript) y una API REST en Node.js/Express. El backend implementa HUS-01 (inicio de sesión), HUS-02 (registro de usuarios), HUS-03 (estadísticas del dashboard) y HUS-04 (gestión de usuarios). La recuperación de contraseña y la verificación por correo todavía no están implementadas.
 
 ## Requisitos
 
@@ -137,6 +137,30 @@ Ejemplo de respuesta `200` para una persona administradora:
 
 La respuesta incluye hasta cinco reservas recientes. La persona administradora consulta conteos globales; cualquier otro usuario autenticado recibe únicamente sus propios conteos y reservas, y `stats.users` será `null`. El total de servicios y los servicios activos son globales porque representan el catálogo disponible. Sin token, con token inválido o expirado, o con cuenta inactiva, la API responde `401`.
 
+## Endpoints HUS-04: gestión de usuarios
+
+Todas las rutas `/api/users` requieren un JWT válido de una cuenta **activa** con rol `admin`. La API vuelve a consultar la cuenta en cada solicitud, así que los cambios de rol o la desactivación tienen efecto inmediato.
+
+- `GET /api/users?page=1&limit=20&search=ana&role=user&status=active` lista usuarios con paginación y filtros opcionales de nombre/correo, rol y estado. `limit` admite de 1 a 100. La respuesta incluye `users` y `pagination` con el total de coincidencias y páginas.
+- `POST /api/users` crea un usuario. Envía `name`, `email` y `password`; `phone` es opcional y `role` admite `user` o `admin` (por defecto `user`). La contraseña debe cumplir la política de fortaleza usada en HUS-02 y se almacena como hash bcrypt. Devuelve `201`.
+- `PUT /api/users/:id` actualiza parcialmente `name`, `email`, `phone`, `role` o `isActive`. No permite modificar directamente hashes ni contraseñas.
+- `DELETE /api/users/:id` desactiva la cuenta (`isActive: false`) en lugar de borrar el documento, para conservar las referencias de reservas existentes.
+
+Las respuestas nunca incluyen el hash de la contraseña. Los correos duplicados devuelven `409`, los datos o identificadores inválidos `400`, un usuario inexistente `404`, y los intentos de gestión sin permisos `401` o `403`. Un administrador no puede quitarse su propio rol ni desactivar su cuenta. El estado de cuenta y el rol se consultan en MongoDB para cada petición protegida.
+
+Los cambios administrativos de creación, rol y estado de cuentas se serializan dentro del proceso de Node.js. Así, solicitudes concurrentes atendidas por una misma instancia no pueden desactivar o degradar simultáneamente a todos los administradores activos. Si se despliega la API con varios procesos o instancias, esta exclusión debe sustituirse por un bloqueo distribuido o por una transacción MongoDB coordinada.
+
+## Endpoints HUS-05: gestión de servicios
+
+Todas las rutas `/api/services` requieren un JWT válido de una cuenta activa. La lectura está disponible para usuarios autenticados; crear, actualizar y eliminar requiere rol `admin`.
+
+- `GET /api/services?page=1&limit=20&search=corte&status=active&category=Cabello` lista servicios con paginación y filtros opcionales por texto, estado y categoría. La búsqueda revisa nombre, descripción y categoría.
+- `POST /api/services` crea un servicio con `name`, `price` y `durationMinutes`; acepta opcionalmente `description`, `imageUrl`, `category` y `status`. El estado predeterminado es `active`.
+- `PUT /api/services/:id` actualiza parcialmente cualquiera de los campos permitidos.
+- `DELETE /api/services/:id` realiza una baja lógica al cambiar `status` a `inactive`; el documento se conserva para mantener válidas las referencias desde reservas históricas.
+
+El precio debe ser un número mayor o igual a cero; la duración, un entero positivo; el estado, `active` o `inactive`. Las respuestas usan `service` para una operación individual y `services` más `pagination` para listados. Datos o identificadores inválidos devuelven `400`, recursos inexistentes `404` y solicitudes sin permisos `401` o `403`. El endpoint `DELETE` no borra físicamente el servicio.
+
 ## Endpoint HUS-01
 
 `POST /api/auth/login`
@@ -169,7 +193,7 @@ La respuesta del usuario no incluye la contraseña ni su hash. Los datos inváli
 
 Para iniciar sesión, el usuario debe estar registrado en `users` con su correo normalizado y `passwordHash` calculado con bcrypt. Las contraseñas en texto plano no son aceptadas.
 
-Los modelos `services` y `reservations` están preparados para historias posteriores, pero todavía no tienen endpoints CRUD. Incluyen, respectivamente, nombre, descripción, precio, duración, imagen, categoría y estado; y referencias a usuario y servicio, fecha, hora, observaciones y estado.
+El modelo `Service` guarda nombre, descripción, precio, duración, imagen, categoría y estado. El modelo `Reservation` guarda referencias a usuario y servicio, fecha, hora, observaciones y estado.
 
 ## Pruebas
 

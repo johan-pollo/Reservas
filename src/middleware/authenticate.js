@@ -39,4 +39,12 @@ function createAuthenticateMiddleware({ User, jwtSecret }) {
   };
 }
 
-module.exports = { createAuthenticateMiddleware };
+function requireAdmin(req, res, next) {
+  if (req.authUser?.role !== 'admin') {
+    return res.status(403).json({ message: 'No tienes permisos para gestionar usuarios.' });
+  }
+
+  return next();
+}
+
+module.exports = { createAuthenticateMiddleware, requireAdmin };
