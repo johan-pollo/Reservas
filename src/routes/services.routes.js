@@ -194,11 +194,14 @@ function createServicesRouter({ Service, User, jwtSecret }) {
     }
 
     try {
-      const service = await Service.findByIdAndDelete(req.params.id).select(SERVICE_FIELDS);
+      const service = await Service.findById(req.params.id).select(SERVICE_FIELDS);
       if (!service) return res.status(404).json({ message: 'No se encontró el servicio.' });
 
+      service.status = 'inactive';
+      await service.save();
+
       return res.status(200).json({
-        message: 'Servicio eliminado correctamente.',
+        message: 'Servicio desactivado correctamente.',
         service: publicService(service)
       });
     } catch (error) {

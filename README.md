@@ -157,9 +157,9 @@ Todas las rutas `/api/services` requieren un JWT válido de una cuenta activa. L
 - `GET /api/services?page=1&limit=20&search=corte&status=active&category=Cabello` lista servicios con paginación y filtros opcionales por texto, estado y categoría. La búsqueda revisa nombre, descripción y categoría.
 - `POST /api/services` crea un servicio con `name`, `price` y `durationMinutes`; acepta opcionalmente `description`, `imageUrl`, `category` y `status`. El estado predeterminado es `active`.
 - `PUT /api/services/:id` actualiza parcialmente cualquiera de los campos permitidos.
-- `DELETE /api/services/:id` elimina el documento del servicio.
+- `DELETE /api/services/:id` realiza una baja lógica al cambiar `status` a `inactive`; el documento se conserva para mantener válidas las referencias desde reservas históricas.
 
-El precio debe ser un número mayor o igual a cero; la duración, un entero positivo; el estado, `active` o `inactive`. Las respuestas usan `service` para una operación individual y `services` más `pagination` para listados. Datos o identificadores inválidos devuelven `400`, recursos inexistentes `404` y solicitudes sin permisos `401` o `403`.
+El precio debe ser un número mayor o igual a cero; la duración, un entero positivo; el estado, `active` o `inactive`. Las respuestas usan `service` para una operación individual y `services` más `pagination` para listados. Datos o identificadores inválidos devuelven `400`, recursos inexistentes `404` y solicitudes sin permisos `401` o `403`. El endpoint `DELETE` no borra físicamente el servicio.
 
 ## Endpoint HUS-01
 
