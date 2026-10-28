@@ -1,5 +1,5 @@
 const { createApp } = Vue;
-const API_BASE_URL = "http://localhost:3000";
+const API_BASE_URL = window.API_BASE_URL || "http://localhost:3000";
 const RECAPTCHA_SITE_KEY = window.RESERVAS_RECAPTCHA_SITE_KEY || "";
 
 const Register = {
@@ -10,12 +10,12 @@ const Register = {
             phone: "",
             password: "",
             passwordConfirmation: "",
+            isTermsModalOpen: false,
             captchaSiteKey: RECAPTCHA_SITE_KEY,
             termsAccepted: false,
             captchaToken: "",
             captchaWidgetId: null,
             captchaError: "",
-            captchaConfigError: "",
             captchaScriptError: false,
             showPassword: false,
             showConfirmation: false,
@@ -221,14 +221,14 @@ const Register = {
                             >
                             <span>Acepto los términos y condiciones.</span>
                         </label>
+                        <button class="terms-link" type="button" @click="isTermsModalOpen = true">Ver términos y condiciones</button>
                         <p v-if="errors.termsAccepted" id="terms-error" class="field-error">{{ errors.termsAccepted }}</p>
                     </div>
 
                     <div class="captcha-group">
                         <p class="captcha-label">Verificación de seguridad</p>
                         <div ref="captchaContainer" class="captcha-container"></div>
-                        <p v-if="captchaConfigError" class="captcha-message" role="status">{{ captchaConfigError }}</p>
-                        <p v-else-if="captchaScriptError" class="field-error" role="alert">
+                        <p v-if="captchaScriptError" class="field-error" role="alert">
                             No se pudo cargar la verificación CAPTCHA. Revisa tu conexión e inténtalo de nuevo.
                         </p>
                         <p v-if="errors.captchaToken || captchaError" class="field-error" role="alert">
@@ -240,7 +240,7 @@ const Register = {
 
                     <button class="login-button" type="submit" :disabled="isSubmitting || !captchaSiteKey">
                         <span v-if="isSubmitting" class="spinner" aria-hidden="true"></span>
-                        {{ !captchaSiteKey ? 'Verificación no configurada' : isSubmitting ? 'Creando cuenta...' : 'Crear cuenta' }}
+                        {{ isSubmitting ? 'Creando cuenta...' : 'Crear cuenta' }}
                     </button>
                 </form>
 
@@ -248,6 +248,28 @@ const Register = {
                     ¿Ya tienes cuenta? <a href="./index.html">Iniciar sesión</a>
                 </footer>
             </section>
+
+            <div v-if="isTermsModalOpen" class="modal-backdrop" @click.self="isTermsModalOpen = false" @keydown.esc.window="isTermsModalOpen = false">
+                <section class="modal-card modal-card-sm terms-modal" role="dialog" aria-labelledby="terms-modal-title" aria-modal="true">
+                    <header class="modal-header">
+                        <div>
+                            <p class="eyebrow">Sistema de Reservas</p>
+                            <h2 id="terms-modal-title">Términos y condiciones</h2>
+                        </div>
+                        <button class="modal-close" type="button" @click="isTermsModalOpen = false" aria-label="Cerrar">&times;</button>
+                    </header>
+                    <div class="modal-body terms-modal-body">
+                        <p><strong>Uso del servicio.</strong> La plataforma permite consultar servicios y gestionar reservas con información veraz y actualizada.</p>
+                        <p><strong>Reservas y cambios.</strong> Cada usuario es responsable de revisar sus citas. Puede solicitar cambios o cancelaciones según las opciones disponibles en la plataforma.</p>
+                        <p><strong>Datos personales.</strong> Los datos se utilizan para administrar la cuenta, confirmar reservas y ofrecer soporte relacionado con el servicio.</p>
+                        <p><strong>Cuenta.</strong> Mantén tus credenciales privadas y avisa al administrador si detectas actividad que no reconoces.</p>
+                        <p class="terms-example-note">Texto de ejemplo para esta demostración; debe revisarse antes de un uso comercial.</p>
+                    </div>
+                    <footer class="modal-footer">
+                        <button class="login-button" type="button" @click="isTermsModalOpen = false">Cerrar</button>
+                    </footer>
+                </section>
+            </div>
         </main>
     `,
     methods: {
@@ -257,7 +279,6 @@ const Register = {
         },
         initializeCaptcha() {
             if (!RECAPTCHA_SITE_KEY) {
-                this.captchaConfigError = "Para activar el registro, configura la clave de sitio de reCAPTCHA en Frontend/config.js.";
                 return;
             }
 
