@@ -8,6 +8,8 @@ const Reservation = require('./models/reservation');
 const { createAuthRouter, createGoogleCaptchaVerifier } = require('./routes/auth.routes');
 const { createDashboardRouter } = require('./routes/dashboard.routes');
 const { createUsersRouter } = require('./routes/users.routes');
+const { createServicesRouter } = require('./routes/services.routes');
+const { createReservationsRouter } = require('./routes/reservations.routes');
 
 function createApp({
   userModel = User,
@@ -47,6 +49,17 @@ function createApp({
     })
   );
   app.use('/api/users', createUsersRouter({ User: userModel, jwtSecret }));
+  app.use('/api/services', createServicesRouter({
+    Service: serviceModel,
+    User: userModel,
+    jwtSecret
+  }));
+  app.use('/api/reservations', createReservationsRouter({
+    Reservation: reservationModel,
+    Service: serviceModel,
+    User: userModel,
+    jwtSecret
+  }));
 
   app.use((req, res) => res.status(404).json({ message: 'Recurso no encontrado.' }));
   app.use((error, req, res, next) => {

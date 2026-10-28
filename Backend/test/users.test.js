@@ -27,13 +27,28 @@ const matchesFilter = (user, filter) => {
 };
 
 class FakeUserModel {
+  static authBarrier = null;
+  static authBarrierReads = 0;
+  static releaseAuthBarrier = null;
+
   static findById(id) {
     return {
       select: async () => {
-        const user = users.find((candidate) => String(candidate._id) === String(id));
-        if (!user) return null;
-        user.save = async () => {};
-        return user;
+        if (this.authBarrier && this.authBarrierReads < 2) {
+          this.authBarrierReads += 1;
+          if (this.authBarrierReads === 2) this.releaseAuthBarrier();
+          await this.authBarrier;
+        }
+
+        const storedUser = users.find((candidate) => String(candidate._id) === String(id));
+        if (!storedUser) return null;
+
+        return {
+          ...storedUser,
+          async save() {
+            Object.assign(storedUser, this);
+          }
+        };
       }
     };
   }
@@ -130,6 +145,8 @@ beforeEach(() => {
     createdAt: new Date('2026-01-03T00:00:00Z')
   };
   users = [admin, secondAdmin, regularUser];
+  FakeUserModel.authBarrier = null;
+  FakeUserModel.authBarrierReads = 0;
   app = createApp({ userModel: FakeUserModel, jwtSecret });
 });
 
@@ -230,6 +247,22 @@ test('impide quitar el rol propio y desactivar el último administrador activo',
   response = await requestAs(admin, 'delete', `/api/users/${admin._id}`);
   assert.equal(response.status, 409);
   assert.equal(admin.isActive, true);
+});
+
+test('serializa cambios administrativos concurrentes para conservar un administrador activo', async () => {
+  const firstAdmin = users[0];
+  const secondAdmin = users[1];
+  FakeUserModel.authBarrier = new Promise((resolve) => {
+    FakeUserModel.releaseAuthBarrier = resolve;
+  });
+
+  const responses = await Promise.all([
+    requestAs(firstAdmin, 'put', `/api/users/${secondAdmin._id}`).send({ role: 'user' }),
+    requestAs(secondAdmin, 'put', `/api/users/${firstAdmin._id}`).send({ role: 'user' })
+  ]);
+
+  assert.deepEqual(responses.map((response) => response.status).sort(), [200, 403]);
+  assert.equal(users.filter((user) => user.role === 'admin' && user.isActive).length, 1);
 });
 
 test('desactiva usuarios sin borrar su historial y maneja objetivos inexistentes', async () => {

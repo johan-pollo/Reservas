@@ -9,6 +9,27 @@ const ALLOWED_ROLES = ['admin', 'user'];
 const MAX_PAGE_SIZE = 100;
 const USER_FIELDS = 'name email phone role isActive createdAt';
 
+let adminMutationQueue = Promise.resolve();
+
+function withAdminMutationLock(operation) {
+  const result = adminMutationQueue.then(operation, operation);
+  adminMutationQueue = result.then(() => undefined, () => undefined);
+  return result;
+}
+
+async function ensureCurrentAdmin(User, req, res) {
+  const user = await User.findById(req.authUser._id).select('role isActive');
+  if (!user || user.isActive === false) {
+    res.status(401).json({ message: 'La sesión no es válida o ha expirado.' });
+    return false;
+  }
+  if (user.role !== 'admin') {
+    res.status(403).json({ message: 'No tienes permisos para gestionar usuarios.' });
+    return false;
+  }
+  return true;
+}
+
 function publicUser(user) {
   return {
     id: String(user._id),
@@ -137,18 +158,22 @@ function createUsersRouter({ User, jwtSecret }) {
     }
 
     try {
-      if (await User.exists({ email: updates.email })) {
-        return res.status(409).json({ message: 'Ya existe un usuario con ese correo electrónico.' });
-      }
+      return await withAdminMutationLock(async () => {
+        if (!await ensureCurrentAdmin(User, req, res)) return;
 
-      const user = await User.create({
-        ...updates,
-        passwordHash: await bcrypt.hash(password, 12)
-      });
+        if (await User.exists({ email: updates.email })) {
+          return res.status(409).json({ message: 'Ya existe un usuario con ese correo electrónico.' });
+        }
 
-      return res.status(201).json({
-        message: 'Usuario creado correctamente.',
-        user: publicUser(user)
+        const user = await User.create({
+          ...updates,
+          passwordHash: await bcrypt.hash(password, 12)
+        });
+
+        return res.status(201).json({
+          message: 'Usuario creado correctamente.',
+          user: publicUser(user)
+        });
       });
     } catch (createError) {
       if (createError.code === 11000 && createError.keyPattern?.email) {
@@ -173,34 +198,38 @@ function createUsersRouter({ User, jwtSecret }) {
     if (error) return res.status(400).json({ message: error });
 
     try {
-      const user = await User.findById(req.params.id).select(USER_FIELDS);
-      if (!user) return res.status(404).json({ message: 'No se encontró el usuario.' });
+      return await withAdminMutationLock(async () => {
+        if (!await ensureCurrentAdmin(User, req, res)) return;
 
-      const affectsOwnAccess = String(user._id) === String(req.authUser._id) &&
-        ((updates.role !== undefined && updates.role !== 'admin') || updates.isActive === false);
-      if (affectsOwnAccess) {
-        return res.status(409).json({ message: 'No puedes quitarte el rol de administrador ni desactivar tu propia cuenta.' });
-      }
+        const user = await User.findById(req.params.id).select(USER_FIELDS);
+        if (!user) return res.status(404).json({ message: 'No se encontró el usuario.' });
 
-      const removesActiveAdmin = user.role === 'admin' && user.isActive !== false &&
-        ((updates.role !== undefined && updates.role !== 'admin') || updates.isActive === false);
-      if (removesActiveAdmin && await User.countDocuments({ role: 'admin', isActive: true }) <= 1) {
-        return res.status(409).json({ message: 'No se puede desactivar ni cambiar el rol del último administrador activo.' });
-      }
+        const affectsOwnAccess = String(user._id) === String(req.authUser._id) &&
+          ((updates.role !== undefined && updates.role !== 'admin') || updates.isActive === false);
+        if (affectsOwnAccess) {
+          return res.status(409).json({ message: 'No puedes quitarte el rol de administrador ni desactivar tu propia cuenta.' });
+        }
 
-      if (updates.email && updates.email !== user.email && await User.exists({
-        email: updates.email,
-        _id: { $ne: user._id }
-      })) {
-        return res.status(409).json({ message: 'Ya existe un usuario con ese correo electrónico.' });
-      }
+        const removesActiveAdmin = user.role === 'admin' && user.isActive !== false &&
+          ((updates.role !== undefined && updates.role !== 'admin') || updates.isActive === false);
+        if (removesActiveAdmin && await User.countDocuments({ role: 'admin', isActive: true }) <= 1) {
+          return res.status(409).json({ message: 'No se puede desactivar ni cambiar el rol del último administrador activo.' });
+        }
 
-      Object.assign(user, updates);
-      await user.save();
+        if (updates.email && updates.email !== user.email && await User.exists({
+          email: updates.email,
+          _id: { $ne: user._id }
+        })) {
+          return res.status(409).json({ message: 'Ya existe un usuario con ese correo electrónico.' });
+        }
 
-      return res.status(200).json({
-        message: 'Usuario actualizado correctamente.',
-        user: publicUser(user)
+        Object.assign(user, updates);
+        await user.save();
+
+        return res.status(200).json({
+          message: 'Usuario actualizado correctamente.',
+          user: publicUser(user)
+        });
       });
     } catch (updateError) {
       if (updateError.code === 11000 && updateError.keyPattern?.email) {
@@ -219,20 +248,24 @@ function createUsersRouter({ User, jwtSecret }) {
     }
 
     try {
-      const user = await User.findById(req.params.id).select(USER_FIELDS);
-      if (!user) return res.status(404).json({ message: 'No se encontró el usuario.' });
+      return await withAdminMutationLock(async () => {
+        if (!await ensureCurrentAdmin(User, req, res)) return;
 
-      if (user.role === 'admin' && user.isActive !== false &&
-        await User.countDocuments({ role: 'admin', isActive: true }) <= 1) {
-        return res.status(409).json({ message: 'No se puede desactivar el último administrador activo.' });
-      }
+        const user = await User.findById(req.params.id).select(USER_FIELDS);
+        if (!user) return res.status(404).json({ message: 'No se encontró el usuario.' });
 
-      user.isActive = false;
-      await user.save();
+        if (user.role === 'admin' && user.isActive !== false &&
+          await User.countDocuments({ role: 'admin', isActive: true }) <= 1) {
+          return res.status(409).json({ message: 'No se puede desactivar el último administrador activo.' });
+        }
 
-      return res.status(200).json({
-        message: 'Usuario desactivado correctamente.',
-        user: publicUser(user)
+        user.isActive = false;
+        await user.save();
+
+        return res.status(200).json({
+          message: 'Usuario desactivado correctamente.',
+          user: publicUser(user)
+        });
       });
     } catch (error) {
       return next(error);
