@@ -1,0 +1,12 @@
+{
+  "name": "reservas-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Frontend SPA para el sistema de reservas y autenticación",
+  "scripts": {
+    "dev": "npx -y serve -l 5500 .",
+    "start": "npx -y serve -l 5500 .",
+    "build": "node --check api.js && node --check config.js && node --check dashboard.js && node --check login.js && node --check register.js",
+    "test": "node --test test/*.test.js"
+  }
+}
