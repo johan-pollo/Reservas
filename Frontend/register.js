@@ -228,6 +228,9 @@ const Register = {
                     <div class="captcha-group">
                         <p class="captcha-label">Verificación de seguridad</p>
                         <div ref="captchaContainer" class="captcha-container"></div>
+                        <p v-if="!captchaSiteKey" class="field-error" role="alert">
+                            El registro no está configurado: añade la clave de sitio de reCAPTCHA en config.js.
+                        </p>
                         <p v-if="captchaScriptError" class="field-error" role="alert">
                             No se pudo cargar la verificación CAPTCHA. Revisa tu conexión e inténtalo de nuevo.
                         </p>
