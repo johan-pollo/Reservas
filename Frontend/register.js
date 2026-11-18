@@ -432,8 +432,9 @@ const Register = {
                         captchaToken: this.captchaToken
                     })
                 });
-            } catch {
-                this.registerError = "No se pudo conectar con el servicio. Inténtalo de nuevo.";
+            } catch (error) {
+                console.error("No se pudo conectar con la API de autenticación.", error);
+                this.registerError = `No se pudo contactar la API en ${API_BASE_URL}. Verifica la URL, que el backend esté activo y que CORS permita este sitio.`;
                 this.isSubmitting = false;
                 return;
             }
@@ -470,7 +471,7 @@ const Register = {
                 return;
             }
 
-            window.location.assign("./dashboard.html?registered=1");
+            window.location.replace("./dashboard.html?registered=1");
         }
     }
 };

@@ -171,8 +171,9 @@ const Login = {
                         password: this.password
                     })
                 });
-            } catch {
-                this.loginError = "No se pudo conectar con el servicio. Inténtalo de nuevo.";
+            } catch (error) {
+                console.error("No se pudo conectar con la API de autenticación.", error);
+                this.loginError = `No se pudo contactar la API en ${API_BASE_URL}. Verifica la URL, que el backend esté activo y que CORS permita este sitio.`;
                 this.isSubmitting = false;
                 return;
             }
@@ -210,8 +211,7 @@ const Login = {
                 return;
             }
 
-            this.isSubmitting = false;
-            this.loginSuccess = "Inicio de sesión exitoso. Tu sesión está activa.";
+            window.location.replace("./dashboard.html");
         }
     }
 };
