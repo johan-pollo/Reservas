@@ -5,6 +5,14 @@ const jwt = require('jsonwebtoken');
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const STRONG_PASSWORD_PATTERN = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
 
+function createSessionToken(user, jwtSecret) {
+  return jwt.sign(
+    { email: user.email, role: user.role || 'user' },
+    jwtSecret,
+    { subject: user.id || String(user._id), expiresIn: '1h' }
+  );
+}
+
 function createGoogleCaptchaVerifier(secretKey, fetchImpl = fetch) {
   return async function verifyCaptcha(token, remoteIp) {
     if (!secretKey) {
@@ -73,11 +81,7 @@ function createLoginHandler({ User, jwtSecret }) {
       user.lockUntil = null;
       await user.save();
 
-      const token = jwt.sign(
-        { email: user.email, role: user.role || 'user' },
-        jwtSecret,
-        { subject: user.id || String(user._id), expiresIn: '1h' }
-      );
+      const token = createSessionToken(user, jwtSecret);
 
       return res.status(200).json({
         message: 'Inicio de sesión exitoso.',
@@ -95,7 +99,7 @@ function createLoginHandler({ User, jwtSecret }) {
   };
 }
 
-function createRegisterHandler({ User, verifyCaptcha }) {
+function createRegisterHandler({ User, verifyCaptcha, jwtSecret }) {
   return async function register(req, res, next) {
     const body = req.body && typeof req.body === 'object' ? req.body : {};
     const name = typeof body.name === 'string' ? body.name.trim() : '';
@@ -151,9 +155,11 @@ function createRegisterHandler({ User, verifyCaptcha }) {
 
       const passwordHash = await bcrypt.hash(password, 12);
       const user = await User.create({ name, email, phone, passwordHash });
+      const token = createSessionToken(user, jwtSecret);
 
       return res.status(201).json({
-        message: 'Registro exitoso. Ya puedes iniciar sesión.',
+        message: 'Registro exitoso. Sesión iniciada.',
+        token,
         user: {
           id: user.id || String(user._id),
           name: user.name,
@@ -179,7 +185,7 @@ function createRegisterHandler({ User, verifyCaptcha }) {
 function createAuthRouter({ User, jwtSecret, verifyCaptcha }) {
   const router = express.Router();
   router.post('/login', createLoginHandler({ User, jwtSecret }));
-  router.post('/register', createRegisterHandler({ User, verifyCaptcha }));
+  router.post('/register', createRegisterHandler({ User, verifyCaptcha, jwtSecret }));
   return router;
 }
 

@@ -119,7 +119,11 @@ test('registra al usuario con correo normalizado y contraseña protegida', async
   });
 
   assert.equal(response.status, 201);
-  assert.equal(response.body.message, 'Registro exitoso. Ya puedes iniciar sesión.');
+  assert.equal(response.body.message, 'Registro exitoso. Sesión iniciada.');
+  const session = jwt.verify(response.body.token, jwtSecret);
+  assert.equal(session.sub, 'registered-user-123');
+  assert.equal(session.email, 'ana@correo.com');
+  assert.equal(session.role, 'user');
   assert.deepEqual(response.body.user, {
     id: 'registered-user-123',
     name: 'Ana Pérez',
@@ -127,7 +131,6 @@ test('registra al usuario con correo normalizado y contraseña protegida', async
     phone: '3001234567',
     role: 'user'
   });
-  assert.equal('token' in response.body, false);
   assert.equal('passwordHash' in response.body.user, false);
 
   const registeredUser = FakeUserModel.users.find((candidate) => candidate.email === 'ana@correo.com');
