@@ -235,7 +235,7 @@ const Dashboard = {
                 </header>
 
                 <!-- Notificación global tipo toast -->
-                <div v-if="notification" class="dashboard-toast" :class="'toast-' + notification.type" role="alert">
+                <div v-if="notification" class="dashboard-toast" :class="'toast-' + notification.type" :role="notification.type === 'success' ? 'status' : 'alert'">
                     <span>{{ notification.text }}</span>
                     <button type="button" class="toast-close" @click="notification = null" aria-label="Cerrar notificación">&times;</button>
                 </div>
@@ -806,6 +806,15 @@ const Dashboard = {
         if (!this.token) {
             window.location.replace("./index.html");
             return;
+        }
+
+        const query = new URLSearchParams(window.location.search);
+        if (query.get("registered") === "1") {
+            this.showNotification("¡Cuenta creada exitosamente! Has iniciado sesión.", "success");
+            query.delete("registered");
+            const search = query.toString();
+            const cleanUrl = `${window.location.pathname}${search ? `?${search}` : ""}${window.location.hash}`;
+            window.history.replaceState({}, document.title, cleanUrl);
         }
 
         // Sincronizar vista según el hash de la URL

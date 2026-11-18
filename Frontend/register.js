@@ -456,7 +456,21 @@ const Register = {
                 return;
             }
 
-            window.location.assign("./index.html?registered=1");
+            if (!result || typeof result.token !== "string" || !result.token) {
+                this.registerError = "La cuenta se creó, pero no se pudo iniciar sesión automáticamente. Inicia sesión manualmente.";
+                this.isSubmitting = false;
+                return;
+            }
+
+            try {
+                localStorage.setItem("token", result.token);
+            } catch {
+                this.registerError = "La cuenta se creó, pero no se pudo guardar la sesión. Inicia sesión manualmente.";
+                this.isSubmitting = false;
+                return;
+            }
+
+            window.location.assign("./dashboard.html?registered=1");
         }
     }
 };
