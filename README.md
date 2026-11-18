@@ -1,200 +1,129 @@
-# Sistema de Reservas
+# Sistema de reservas
 
-Proyecto con un frontend estático de inicio de sesión (HTML, CSS y JavaScript) y una API REST en Node.js/Express. El backend implementa HUS-01 (inicio de sesión), HUS-02 (registro de usuarios), HUS-03 (estadísticas del dashboard) y HUS-04 (gestión de usuarios). La recuperación de contraseña y la verificación por correo todavía no están implementadas.
+Aplicación con frontend estático y API REST en Node.js/Express. El backend usa MongoDB mediante Mongoose. Las cuentas, servicios y reservas creados correctamente por la aplicación se guardan en la base de datos; el dashboard calcula sus estadísticas a partir de esos registros.
 
 ## Requisitos
 
 - Node.js 20 o superior.
-- MongoDB local o una instancia accesible.
-- Un servidor estático para el frontend, por ejemplo, Live Server de VS Code.
+- Cuenta de MongoDB Atlas con un cluster disponible (o una instancia local de MongoDB).
+- Un navegador y un servidor estático para abrir el frontend, por ejemplo Live Server de VS Code.
 
-## Frontend de inicio de sesión
+## Configuración de MongoDB Atlas y ejecución local
 
-El frontend entregado en `Reservas-feature-HUS-01-frontend-login.zip` contiene `index.html`, `login.js` y `styles.css`. El formulario solicita correo y contraseña, permite mostrar u ocultar la contraseña y presenta mensajes de validación.
+### 1. Protege las credenciales de Atlas
 
-Actualmente, el JavaScript del formulario simula la autenticación con credenciales de demostración; todavía no llama a la API ni almacena el token. Además, el HTML busca los archivos en `css/styles.css` y `js/login.js`, aunque el ZIP los entrega en la carpeta raíz. Al copiar el frontend, organiza los archivos en esas carpetas o actualiza las rutas en `index.html`.
+La URI de conexión compartida anteriormente contenía una contraseña. **Cámbiala o revócala antes de continuar**; no reutilices esa contraseña.
 
-Para integrar el formulario con el backend, conserva las validaciones existentes y reemplaza el bloque de credenciales simuladas en `login.js`. Declara como `async` el manejador `submit` que ya existe y llama allí a `await authenticate(email, password)` después de validar los campos. No elimines espacios de la contraseña:
+En MongoDB Atlas:
 
-```javascript
-async function authenticate(email, password) {
-  try {
-    const response = await fetch('http://localhost:3000/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    });
-    const result = await response.json();
+1. Abre **Security → Database Access**. Cambia la contraseña del usuario expuesto o crea un usuario nuevo para esta aplicación. Dale el rol `readWrite` únicamente sobre la base de datos `Reservas`; no uses un usuario administrador del cluster.
+2. Abre **Security → Network Access** y añade la IP pública desde la que ejecutarás el backend. No habilites acceso desde todas las IP (`0.0.0.0/0`) para una aplicación real.
+3. En **Database → Connect → Drivers**, elige Node.js y copia la URI de conexión. Sustituye el marcador de contraseña por la nueva contraseña. Si contiene caracteres especiales, codifícalos para URI.
 
-    if (!response.ok) {
-      loginMessage.textContent = result.message;
-      loginMessage.classList.add('error');
-      return;
-    }
+La URI es un secreto del backend. No la pongas en `Frontend/config.js`, HTML, JavaScript del navegador, repositorio ni capturas de pantalla.
 
-    sessionStorage.setItem('token', result.token);
-    loginMessage.textContent = result.message;
-    loginMessage.classList.add('success');
-  } catch {
-    loginMessage.textContent = 'No fue posible conectar con el servidor.';
-    loginMessage.classList.add('error');
-  }
-}
-```
+### 2. Crea el archivo de entorno del backend
 
-El ejemplo usa `email` y `password`, los mismos nombres que los campos del formulario y que espera la API. `sessionStorage` es solo una opción sencilla para una demostración; en una aplicación desplegada, revisa la estrategia de almacenamiento de tokens y la protección contra XSS.
-
-## Configuración y ejecución del backend
-
-Desde la carpeta del backend:
+En PowerShell, desde la raíz del proyecto:
 
 ```powershell
+Set-Location .\Backend
 Copy-Item .env.example .env
-npm ci
 ```
 
-Genera un secreto aleatorio para JWT y copia el resultado en `JWT_SECRET` dentro de `.env`:
+Abre `Backend/.env` en VS Code y completa:
+
+- `MONGODB_URI`: URI nueva de Atlas.
+- `MONGODB_DB_NAME`: deja `Reservas` para usar esa base de datos.
+- `JWT_SECRET`: genera uno con el comando siguiente y pega el resultado.
+- `CLIENT_ORIGIN`: origen del frontend local. Con Live Server suele ser `http://localhost:5500`; debe coincidir con el puerto que muestra VS Code.
+- `RECAPTCHA_SECRET_KEY`: clave secreta de reCAPTCHA, necesaria para el registro.
+
+Genera un secreto JWT en la terminal:
 
 ```powershell
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
-Configura también `MONGODB_URI`, `MONGODB_DB_NAME` y `CLIENT_ORIGIN` en `.env`. Para ejecutar la API en desarrollo:
+`Backend/.env` está excluido de Git. No copies secretos en este README ni en el archivo de ejemplo. El backend falla al arrancar si falta `MONGODB_URI`, en vez de conectarse silenciosamente a una base local.
+
+### 3. Configura reCAPTCHA para el registro
+
+En la consola de administración de reCAPTCHA, registra el dominio local que usarás (por ejemplo, `localhost`) y, si vas a publicar la aplicación, también su dominio. Copia:
+
+- La **clave de sitio** en `Frontend/config.js`, en `RESERVAS_RECAPTCHA_SITE_KEY`. Esta clave es pública y se usa en el navegador.
+- La **clave secreta** en `RECAPTCHA_SECRET_KEY` de `Backend/.env`. Esta clave es privada y nunca debe ponerse en el frontend.
+
+Reinicia el backend tras cambiar `.env`.
+
+### 4. Inicia el backend y el frontend
+
+Desde `Backend`:
 
 ```powershell
+npm ci
 npm run dev
 ```
 
-El servidor conecta a MongoDB, prepara las colecciones `users`, `services` y `reservations`, y crea sus índices. No inserta usuarios ni datos de ejemplo. `GET /api/health` comprueba que la API esté respondiendo.
+Abre `Frontend` con Live Server. Si el servidor usa un origen distinto de `http://localhost:5500`, actualiza `CLIENT_ORIGIN` en `Backend/.env` y reinicia el backend.
 
-Abre el frontend con un servidor estático. El origen predeterminado permitido por CORS es `http://localhost:5500`; si utilizas otro, actualiza `CLIENT_ORIGIN` en `.env`.
+Comprueba `http://localhost:3000/api/health`; debe responder `{"status":"ok"}`. Al iniciar, el backend crea las colecciones e índices `users`, `services` y `reservations` en la base `Reservas`. Atlas no mostrará documentos hasta que se registren usuarios o se creen servicios y reservas desde la aplicación.
 
-## Endpoint HUS-02: registro
+### 5. Crea la primera cuenta administradora
 
-`POST /api/auth/register`
+No se crean cuentas de ejemplo ni administradores automáticamente. Después de configurar reCAPTCHA:
 
-Solicitud JSON:
+1. Registra tu propia cuenta desde `Frontend/register.html`.
+2. En Atlas, abre **Database → Browse Collections → Reservas → users** y edita el documento de tu cuenta.
+3. Cambia únicamente el campo `role` de `user` a `admin` y guarda.
+4. Inicia sesión de nuevo. Desde la aplicación podrás administrar usuarios y servicios.
 
-```json
-{
-  "name": "Ana Pérez",
-  "email": "ana@correo.com",
-  "phone": "3001234567",
-  "password": "ClaveSegura123!",
-  "confirmPassword": "ClaveSegura123!",
-  "termsAccepted": true,
-  "captchaToken": "<token emitido por reCAPTCHA>"
-}
-```
+No cambies ni copies manualmente `passwordHash`; el registro guarda la contraseña usando bcrypt.
 
-El backend normaliza el correo, valida el nombre, el teléfono, la confirmación de contraseña y la aceptación de términos. La contraseña debe tener al menos ocho caracteres, mayúscula, minúscula, número y símbolo; se almacena únicamente como hash bcrypt y se rechazan contraseñas de más de 72 bytes. El rol se asigna en el servidor y no se toma del formulario.
+## Datos que guarda la aplicación
 
-Una respuesta `201` confirma el registro y devuelve el perfil público (`id`, `name`, `email`, `phone` y `role`); no inicia sesión ni devuelve un JWT. El usuario puede iniciar sesión con HUS-01 después de registrarse. El correo existente devuelve `409`, los datos o tokens CAPTCHA inválidos devuelven `400`, y un CAPTCHA no configurado devuelve `503`. Las solicitudes al endpoint de autenticación están limitadas por IP.
+- `users`: perfil, rol y estado de cuenta; la contraseña se almacena como hash.
+- `services`: nombre, descripción, precio, duración, imagen, categoría y estado.
+- `reservations`: usuario, servicio, fecha, hora, observaciones y estado.
+- Las estadísticas del dashboard se calculan al consultarlas; no se guardan como documentos aparte.
+- El token de inicio de sesión permanece en el almacenamiento local del navegador, pero no es un dato de negocio ni sustituye a MongoDB.
 
-El frontend incluido en este repositorio solo contiene el formulario de inicio de sesión: todavía no incluye formulario de registro ni integración cliente con reCAPTCHA. La clave de sitio y el token CAPTCHA deberán conectarse cuando se implemente esa pantalla. La verificación por correo también queda pendiente.
+Los servicios y usuarios se desactivan para conservar su historial y referencias. El botón de eliminar servicio ahora realiza una baja lógica (`status: inactive`), no borra el documento.
 
-## Endpoint HUS-03: estadísticas del dashboard
+## Migrar registros existentes
 
-`GET /api/dashboard/stats`
+El frontend de este proyecto no guarda usuarios, servicios ni reservas en el navegador; solo guarda el token de sesión. Por eso, si no tienes datos en otra base o archivo, no hay registros anteriores que importar: los nuevos se escribirán en Atlas cuando la API esté conectada.
 
-Requiere el JWT emitido por el inicio de sesión en el encabezado `Authorization: Bearer <token>`. El backend verifica la firma, la vigencia y que la cuenta todavía exista y esté activa; no confía en el rol incluido en el token y consulta el rol actual del usuario.
+Si tienes datos de otro sistema:
 
-Ejemplo de respuesta `200` para una persona administradora:
+1. Haz una copia de seguridad de la fuente.
+2. Exporta los documentos y revisa que coincidan con los modelos y campos descritos arriba.
+3. Importa primero usuarios y servicios y después reservas, conservando las referencias `userId` y `serviceId` correctas. Utiliza MongoDB Compass o `mongosh`.
+4. Nunca importes contraseñas en texto plano. Las contraseñas existentes deben migrarse como hashes compatibles o restablecerse para que cada persona elija una nueva.
+5. Comprueba los documentos y las referencias en Atlas antes de permitir el uso normal.
 
-```json
-{
-  "user": {
-    "id": "<id>",
-    "name": "Ana Pérez",
-    "role": "admin"
-  },
-  "stats": {
-    "users": 12,
-    "services": { "total": 8, "active": 6 },
-    "reservations": {
-      "total": 24,
-      "pending": 4,
-      "confirmed": 10,
-      "cancelled": 3,
-      "completed": 7
-    }
-  },
-  "recentReservations": [
-    {
-      "id": "<id>",
-      "date": "2026-11-01T00:00:00.000Z",
-      "time": "10:00",
-      "status": "pending",
-      "notes": "",
-      "userId": "<id>",
-      "serviceId": "<id>"
-    }
-  ]
-}
-```
+## Publicación en Internet
 
-La respuesta incluye hasta cinco reservas recientes. La persona administradora consulta conteos globales; cualquier otro usuario autenticado recibe únicamente sus propios conteos y reservas, y `stats.users` será `null`. El total de servicios y los servicios activos son globales porque representan el catálogo disponible. Sin token, con token inválido o expirado, o con cuenta inactiva, la API responde `401`.
+Estas tareas requieren acceso a tus cuentas y las debes completar tú:
 
-## Endpoints HUS-04: gestión de usuarios
+1. Publica el backend en un proveedor de Node.js y configura allí `MONGODB_URI`, `MONGODB_DB_NAME`, `JWT_SECRET`, `CLIENT_ORIGIN` y `RECAPTCHA_SECRET_KEY` como variables privadas del servicio.
+2. Cambia `API_BASE_URL` en `Frontend/config.js` por la URL HTTPS pública de la API. El frontend ya lee esa configuración para login, registro, dashboard, servicios y usuarios.
+3. Actualiza `CLIENT_ORIGIN` con el origen HTTPS exacto del frontend.
+4. En Atlas, autoriza la dirección de salida del backend publicado. No incluyas la URI de MongoDB en el sitio estático.
+5. Prueba registro, login, creación de servicio y reserva; revisa que aparezcan en las colecciones de Atlas.
 
-Todas las rutas `/api/users` requieren un JWT válido de una cuenta **activa** con rol `admin`. La API vuelve a consultar la cuenta en cada solicitud, así que los cambios de rol o la desactivación tienen efecto inmediato.
-
-- `GET /api/users?page=1&limit=20&search=ana&role=user&status=active` lista usuarios con paginación y filtros opcionales de nombre/correo, rol y estado. `limit` admite de 1 a 100. La respuesta incluye `users` y `pagination` con el total de coincidencias y páginas.
-- `POST /api/users` crea un usuario. Envía `name`, `email` y `password`; `phone` es opcional y `role` admite `user` o `admin` (por defecto `user`). La contraseña debe cumplir la política de fortaleza usada en HUS-02 y se almacena como hash bcrypt. Devuelve `201`.
-- `PUT /api/users/:id` actualiza parcialmente `name`, `email`, `phone`, `role` o `isActive`. No permite modificar directamente hashes ni contraseñas.
-- `DELETE /api/users/:id` desactiva la cuenta (`isActive: false`) en lugar de borrar el documento, para conservar las referencias de reservas existentes.
-
-Las respuestas nunca incluyen el hash de la contraseña. Los correos duplicados devuelven `409`, los datos o identificadores inválidos `400`, un usuario inexistente `404`, y los intentos de gestión sin permisos `401` o `403`. Un administrador no puede quitarse su propio rol ni desactivar su cuenta. El estado de cuenta y el rol se consultan en MongoDB para cada petición protegida.
-
-Los cambios administrativos de creación, rol y estado de cuentas se serializan dentro del proceso de Node.js. Así, solicitudes concurrentes atendidas por una misma instancia no pueden desactivar o degradar simultáneamente a todos los administradores activos. Si se despliega la API con varios procesos o instancias, esta exclusión debe sustituirse por un bloqueo distribuido o por una transacción MongoDB coordinada.
-
-## Endpoints HUS-05: gestión de servicios
-
-Todas las rutas `/api/services` requieren un JWT válido de una cuenta activa. La lectura está disponible para usuarios autenticados; crear, actualizar y eliminar requiere rol `admin`.
-
-- `GET /api/services?page=1&limit=20&search=corte&status=active&category=Cabello` lista servicios con paginación y filtros opcionales por texto, estado y categoría. La búsqueda revisa nombre, descripción y categoría.
-- `POST /api/services` crea un servicio con `name`, `price` y `durationMinutes`; acepta opcionalmente `description`, `imageUrl`, `category` y `status`. El estado predeterminado es `active`.
-- `PUT /api/services/:id` actualiza parcialmente cualquiera de los campos permitidos.
-- `DELETE /api/services/:id` realiza una baja lógica al cambiar `status` a `inactive`; el documento se conserva para mantener válidas las referencias desde reservas históricas.
-
-El precio debe ser un número mayor o igual a cero; la duración, un entero positivo; el estado, `active` o `inactive`. Las respuestas usan `service` para una operación individual y `services` más `pagination` para listados. Datos o identificadores inválidos devuelven `400`, recursos inexistentes `404` y solicitudes sin permisos `401` o `403`. El endpoint `DELETE` no borra físicamente el servicio.
-
-## Endpoint HUS-01
-
-`POST /api/auth/login`
-
-Solicitud:
-
-```json
-{
-  "email": "usuario@correo.com",
-  "password": "tu-contraseña"
-}
-```
-
-Respuesta `200`:
-
-```json
-{
-  "message": "Inicio de sesión exitoso.",
-  "token": "<JWT válido durante una hora>",
-  "user": {
-    "id": "<id del usuario>",
-    "name": "Nombre del usuario",
-    "email": "usuario@correo.com",
-    "role": "user"
-  }
-}
-```
-
-La respuesta del usuario no incluye la contraseña ni su hash. Los datos inválidos devuelven `400`; las credenciales incorrectas, cuentas inactivas o bloqueadas devuelven un error genérico `401`. Se limitan las solicitudes por IP y la cuenta se bloquea temporalmente después de varios intentos fallidos. `LOGIN_MAX_ATTEMPTS` y `LOGIN_LOCK_MINUTES` permiten ajustar los valores predeterminados de cinco intentos y quince minutos.
-
-Para iniciar sesión, ya debe existir en `users` un documento con el correo normalizado y `passwordHash` calculado con bcrypt. HUS-01 no incluye el registro de usuarios. Las contraseñas en texto plano no son aceptadas.
-
-El modelo `Service` guarda nombre, descripción, precio, duración, imagen, categoría y estado. El modelo `Reservation` guarda referencias a usuario y servicio, fecha, hora, observaciones y estado.
-
-## Pruebas
+## Pruebas del backend
 
 ```powershell
+Set-Location .\Backend
 npm test
 ```
+
+## Endpoints principales
+
+- `POST /api/auth/register` y `POST /api/auth/login`
+- `/api/users`: administración de cuentas (requiere administrador).
+- `/api/services`: catálogo y administración de servicios.
+- `/api/reservations`: crear, consultar, reprogramar y cancelar reservas.
+- `GET /api/dashboard/stats`: estadísticas del usuario autenticado.
+- `GET /api/health`: estado de la API.
