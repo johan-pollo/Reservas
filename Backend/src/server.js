@@ -5,6 +5,14 @@ const { createApp } = require('./app');
 const { initializeCollections } = require('./database/initialize');
 
 async function start() {
+  const dnsServers = (process.env.MONGODB_DNS_SERVERS || '')
+    .split(',')
+    .map((server) => server.trim())
+    .filter(Boolean);
+  if (dnsServers.length > 0) {
+    require('node:dns').setServers(dnsServers);
+  }
+
   if (!process.env.MONGODB_URI) {
     throw new Error('MONGODB_URI no está configurado. Crea Backend/.env usando Backend/.env.example.');
   }
