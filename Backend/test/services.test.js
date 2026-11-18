@@ -88,16 +88,6 @@ class FakeServiceModel {
       }
     };
   }
-
-  static findByIdAndDelete(id) {
-    return {
-      select: async () => {
-        const index = services.findIndex((service) => String(service._id) === String(id));
-        if (index === -1) return null;
-        return services.splice(index, 1)[0];
-      }
-    };
-  }
 }
 
 function tokenFor(user) {
@@ -196,7 +186,7 @@ test('crea servicios y valida los datos requeridos', async () => {
   assert.equal(invalidResponse.status, 400);
 });
 
-test('actualiza y elimina servicios y responde ante identificadores inexistentes', async () => {
+test('actualiza y desactiva servicios sin borrarlos y responde ante identificadores inexistentes', async () => {
   const serviceId = String(services[0]._id);
   let response = await requestAs(users[0], 'put', `/api/services/${serviceId}`).send({
     price: 30000,
@@ -208,7 +198,9 @@ test('actualiza y elimina servicios y responde ante identificadores inexistentes
 
   response = await requestAs(users[0], 'delete', `/api/services/${serviceId}`);
   assert.equal(response.status, 200);
-  assert.equal(services.some((service) => String(service._id) === serviceId), false);
+  assert.equal(response.body.service.status, 'inactive');
+  assert.equal(services.some((service) => String(service._id) === serviceId), true);
+  assert.equal(services.find((service) => String(service._id) === serviceId).status, 'inactive');
 
   response = await requestAs(users[0], 'delete', `/api/services/${new mongoose.Types.ObjectId()}`);
   assert.equal(response.status, 404);

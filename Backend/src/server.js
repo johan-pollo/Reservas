@@ -1,14 +1,19 @@
-require('dotenv').config();
+const path = require('node:path');
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 const mongoose = require('mongoose');
 const { createApp } = require('./app');
 const { initializeCollections } = require('./database/initialize');
 
 async function start() {
+  if (!process.env.MONGODB_URI) {
+    throw new Error('MONGODB_URI no está configurado. Crea Backend/.env usando Backend/.env.example.');
+  }
+
   if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
     throw new Error('JWT_SECRET debe tener al menos 32 caracteres.');
   }
 
-  await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/', {
+  await mongoose.connect(process.env.MONGODB_URI, {
     dbName: process.env.MONGODB_DB_NAME || 'Reservas'
   });
   await initializeCollections();
