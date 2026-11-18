@@ -36,7 +36,7 @@ Abre `Backend/.env` en VS Code y completa:
 - `MONGODB_URI`: URI nueva de Atlas.
 - `MONGODB_DB_NAME`: deja `Reservas` para usar esa base de datos.
 - `JWT_SECRET`: genera uno con el comando siguiente y pega el resultado.
-- `CLIENT_ORIGIN`: origen del frontend local. Con Live Server suele ser `http://localhost:5500`; debe coincidir con el puerto que muestra VS Code.
+- `CLIENT_ORIGIN`: origen del frontend. Con Live Server suele ser `http://localhost:5500`; debe coincidir con el puerto que muestra VS Code. Separa varios orígenes con comas, sin barra final (por ejemplo, frontend publicado y direcciones locales).
 - `RECAPTCHA_SECRET_KEY`: clave secreta de reCAPTCHA, necesaria para el registro.
 
 Genera un secreto JWT en la terminal:
@@ -74,9 +74,10 @@ Comprueba `http://localhost:3000/api/health`; debe responder `{"status":"ok"}`. 
 No se crean cuentas de ejemplo ni administradores automáticamente. Después de configurar reCAPTCHA:
 
 1. Registra tu propia cuenta desde `Frontend/register.html`.
+   El registro crea la cuenta, inicia sesión automáticamente y muestra una notificación en el dashboard.
 2. En Atlas, abre **Database → Browse Collections → Reservas → users** y edita el documento de tu cuenta.
 3. Cambia únicamente el campo `role` de `user` a `admin` y guarda.
-4. Inicia sesión de nuevo. Desde la aplicación podrás administrar usuarios y servicios.
+4. Vuelve al dashboard. El backend consulta el rol actualizado de la cuenta y habilita la administración.
 
 No cambies ni copies manualmente `passwordHash`; el registro guarda la contraseña usando bcrypt.
 
